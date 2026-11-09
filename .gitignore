@@ -1,2 +1,5 @@
 shipcast.plan*.json
 node_modules
+video/
+shipcast-demo.mp4
+SUBMISSION.md

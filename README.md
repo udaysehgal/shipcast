@@ -13,6 +13,8 @@ git log ──► classify (feature / performance / fix / infra / docs)
 
 One file, no dependencies, Node 18+.
 
+**Demo (2 min):** [media/shipcast-demo.mp4](media/shipcast-demo.mp4)
+
 ## Use
 
 ```bash
