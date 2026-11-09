@@ -209,6 +209,28 @@ async function slotsFor(platform, accountId, n) {
   return out.sort((a, b) => a - b).map((d) => d.toISOString());
 }
 
+// No social accounts connected yet: file each commit as a platform-less draft under the
+// default profile, keeping every platform's text in metadata so nothing is lost.
+async function draftsWithoutAccounts(plan) {
+  if (flag("publish")) throw new Error(`no connected ${PLATFORMS.join("/")} accounts in Zernio; connect one to publish`);
+  const profiles = (await z("GET", "/v1/profiles")).profiles || [];
+  const profile = profiles.find((p) => p.isDefault) || profiles[0];
+  log(`no ${PLATFORMS.join("/")} accounts connected; saving drafts to profile "${profile?.name}"`);
+  for (const it of [...plan.items].reverse()) {
+    const r = await z("POST", "/v1/posts", {
+      content: it.posts.twitter,
+      title: `${plan.repo.name} ${it.short} [${it.kind}]`,
+      isDraft: true,
+      profileId: profile?._id,
+      tags: ["shipcast", `kind:${it.kind}`, `repo:${plan.repo.name}`],
+      metadata: { shipcast: true, sha: it.sha, kind: it.kind, repo: plan.repo.web, linkedin: it.posts.linkedin, bluesky: it.posts.bluesky },
+    });
+    const post = r.post || r;
+    console.log(`drafted   ${it.short} [${it.kind}] -> ${post._id} (${post.status})`);
+  }
+  console.log("\nConnect X / LinkedIn / Bluesky in Zernio and rerun `schedule` to target them at their best-time slots.");
+}
+
 async function schedule() {
   const planFile = flag("plan", "shipcast.plan.json");
   const plan = JSON.parse(readFileSync(planFile, "utf8"));
@@ -216,7 +238,7 @@ async function schedule() {
   const byPlatform = {};
   for (const a of accounts) if (PLATFORMS.includes(a.platform) && a.isActive !== false && !byPlatform[a.platform]) byPlatform[a.platform] = a;
   const targets = Object.keys(byPlatform);
-  if (!targets.length) throw new Error(`no connected ${PLATFORMS.join("/")} accounts in Zernio`);
+  if (!targets.length) return draftsWithoutAccounts(plan);
   log(`accounts: ${targets.map((p) => `${p}=@${byPlatform[p].username || byPlatform[p]._id}`).join(", ")}`);
 
   const slots = {};
